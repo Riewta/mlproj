@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import joblib
 import os
+from fastapi import Request
+import requests
 # solve หา identity ไม่เจอ;
 def identity_tokenizer(text):
     return text.split()
@@ -11,10 +13,9 @@ import __main__
 
 __main__.identity_tokenizer = identity_tokenizer
 
-from cleaner import ThaiTextCleaner
+from src.cleaner import ThaiTextCleaner
 
 app = FastAPI()
-
 # ส่วนAi
 # ใช้ path absolute
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -41,20 +42,39 @@ def root():
     return {"status": "online", "message": "Sentiment Analysis API is ready!"}
 
 
-@app.post("/predict")
-def predict_sentiment(request: ReviewRequest):
-    try:
-        # cut the word
-        cleaned = " ".join(cleaner.clean(request.text))
-        # turn to numb
-        vectorized = tfidf.transform([cleaned])
-        # predict
-        prediction = model.predict(vectorized)[0]
+LINE_ACCESS_TOKEN = "21SjO2+W/RyK8CVEwWa2zUU3JOFMIFtK9ZuoAW983GSRy6tG/GCME2EuiLgw/zi94VUKdr4EDNgA4LX/5bBFJA9f3JzBZfhNodgXYPcN6Y7joUFeikg0PiHIYtneNdXOrijQZGyEweXK4BlyTLoC0wdB04t89/1O/w1cDnyilFU="
 
-        return {
-            "text": request.text,
-            "sentiment": "Positive" if prediction == 1 else "Negative",
-            "confidence": "high"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/predict")
+async def handle_line(request: Request):
+    body = await request.json()
+
+    if "events" in body and len(body["events"]) > 0:
+        event = body["events"][0]
+
+        # เช็กว่าเป็นข้อความป่าว
+        if event["type"] == "message":
+            user_msg = event["message"]["text"]
+            reply_token = event["replyToken"]  # reply
+
+            print(f"Naevis received: {user_msg}")
+
+            # ตอบกลับ
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {LINE_ACCESS_TOKEN}"
+            }
+            payload = {
+                "replyToken": reply_token,
+                "messages": [
+                    {
+                        "type": "text",
+                        "text": f"Naevis ได้รับข้อความว่า: {user_msg}"
+                    }
+                ]
+            }
+            # send back to Line
+            response = requests.post("https://api.line.me/v2/bot/message/reply", json=payload, headers=headers)
+            print(f"Reply Status: {response.status_code}")  # เช็กว่าส่งผ่านรึป่าว
+
+    return {"status": "ok"}
