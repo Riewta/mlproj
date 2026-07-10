@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+requests
+joblib
+scikit-learn
+pandas
+pythainlp
+python-dotenv
