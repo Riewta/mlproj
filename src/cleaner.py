@@ -1,24 +1,27 @@
 import re
-import pythainlp
+
 from pythainlp.corpus.common import thai_stopwords
+from pythainlp.tokenize import word_tokenize
+
+# Negations / intensifiers carry sentiment — never drop them as stopwords.
+KEEP_WORDS = {"ไม่", "ไม่ได้", "ไม่มี", "ยัง", "มาก", "ที่สุด", "เลย", "ห่วย", "ดี"}
+
+_URL_RE = re.compile(r"https?://\S+")
+_NON_TEXT_RE = re.compile(r"[^฀-๿a-zA-Z0-9\s]")
+_REPEAT_RE = re.compile(r"(.)\1{2,}")
 
 
 class ThaiTextCleaner:
     def __init__(self):
-        self.stop_words = set(thai_stopwords())
+        self.stop_words = set(thai_stopwords()) - KEEP_WORDS
 
-    def _normalize_repeated_chars(self, text):
-        return re.sub(r'(.)\1{2,}', r'\1', text)
-
-    def clean(self, text):
+    def clean(self, text) -> list[str]:
         text = str(text).strip()
-        text = re.sub(r'https?://\S+', '', text)
-        text = re.sub(r'[^฀-๿a-zA-Z0-9\s]', '', text)
-        text = self._normalize_repeated_chars(text)
-        text = pythainlp.util.remove_tonemark(text)
-        tokens = pythainlp.tokenize.word_tokenize(text, engine="newmm")
-        cleaned_tokens = [w for w in tokens if w not in self.stop_words and not w.isspace()]
-        return cleaned_tokens
+        text = _URL_RE.sub("", text)
+        text = _NON_TEXT_RE.sub("", text)
+        text = _REPEAT_RE.sub(r"\1", text)
+        tokens = word_tokenize(text, engine="newmm")
+        return [w for w in tokens if w not in self.stop_words and not w.isspace()]
 
 
 if __name__ == "__main__":
