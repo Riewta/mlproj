@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from src.aspects import detect_aspects
 from src.cleaner import ThaiTextCleaner
 
 load_dotenv()
@@ -54,6 +55,7 @@ def predict_sentiment(text: str) -> dict:
         "sentiment": "positive" if label == 1 else "negative",
         "confidence": round(float(proba.max()), 4),
         "label": label,
+        "aspects": [a for a, hit in detect_aspects(text).items() if hit],
     }
 
 

@@ -14,6 +14,14 @@ Put `data/train.csv` (`review,rating` rows; rating ≥4 positive, ≤2 negative,
 python -m src.train
 ```
 
+## Evaluate on delivery reviews
+```bash
+python -m src.make_label_set 200   # -> data/to_label.csv (delivery-related Wongnai reviews)
+# label by hand: sentiment (1/0) and food/rider/delay/price (1/0), save as data/labeled.csv
+python -m src.evaluate             # sentiment report + aspect baseline F1
+```
+Aspects are a keyword-rule baseline (`src/aspects.py`), returned in `/analyze` as `aspects`.
+
 ## Run
 ```bash
 uvicorn src.main:app --reload
