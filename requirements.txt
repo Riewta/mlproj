@@ -7,3 +7,5 @@ scikit-learn
 pandas
 pythainlp
 python-dotenv
+pytest
+httpx
