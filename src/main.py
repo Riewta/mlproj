@@ -4,16 +4,16 @@ import hashlib
 import hmac
 import logging
 import os
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 
-import joblib
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from src.aspects import detect_aspects
-from src.cleaner import ThaiTextCleaner
+from src import db
+from src.predictor import Predictor
 
 load_dotenv()
 logger = logging.getLogger("sentiment")
@@ -25,15 +25,14 @@ LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN", "")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET", "")
 LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply"
 
-state: dict = {"model": None, "tfidf": None, "cleaner": None}
+predictor: Predictor | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global predictor
     try:
-        state["model"] = joblib.load(os.path.join(MODEL_DIR, "sentiment_model.pkl"))
-        state["tfidf"] = joblib.load(os.path.join(MODEL_DIR, "tfidf_vectorizer.pkl"))
-        state["cleaner"] = ThaiTextCleaner()
+        predictor = Predictor(MODEL_DIR)
         logger.info("Models loaded successfully.")
     except Exception as e:
         logger.warning("Could not load models (%s). Train first: python -m src.train", e)
@@ -44,19 +43,20 @@ app = FastAPI(title="Thai Sentiment API", lifespan=lifespan)
 
 
 def predict_sentiment(text: str) -> dict:
-    model, tfidf, cleaner = state["model"], state["tfidf"], state["cleaner"]
-    if model is None or tfidf is None or cleaner is None:
+    if predictor is None:
         raise HTTPException(status_code=503, detail="Models not loaded. Run: python -m src.train")
-    cleaned = " ".join(cleaner.clean(text))
-    vec = tfidf.transform([cleaned])
-    proba = model.predict_proba(vec)[0]
-    label = int(model.classes_[proba.argmax()])
-    return {
-        "sentiment": "positive" if label == 1 else "negative",
-        "confidence": round(float(proba.max()), 4),
-        "label": label,
-        "aspects": [a for a, hit in detect_aspects(text).items() if hit],
-    }
+    return predictor.predict(text)
+
+
+def store_line_message(msg_id: str, text: str, result: dict, ts_ms: int | None) -> None:
+    created = (datetime.fromtimestamp(ts_ms / 1000, timezone.utc).isoformat(timespec="seconds")
+               if ts_ms else db.utc_now())
+    conn = db.connect()
+    try:
+        db.insert_review(conn, source="line", dedupe_key=msg_id, text=text, result=result, created_at=created)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def verify_line_signature(body: bytes, signature: str) -> bool:
@@ -64,10 +64,8 @@ def verify_line_signature(body: bytes, signature: str) -> bool:
     return hmac.compare_digest(base64.b64encode(digest).decode(), signature)
 
 
-def build_reply(user_text: str) -> str:
-    try:
-        result = predict_sentiment(user_text)
-    except HTTPException:
+def build_reply(user_text: str, result: dict | None) -> str:
+    if result is None:
         return "ขออภัย ระบบวิเคราะห์ความรู้สึกยังไม่พร้อมใช้งาน"
     positive = result["sentiment"] == "positive"
     return (
@@ -99,8 +97,8 @@ class AnalyzeRequest(BaseModel):
 def root():
     return {
         "status": "online",
-        "models_loaded": state["model"] is not None,
-        "endpoints": ["/analyze", "/webhook"],
+        "models_loaded": predictor is not None,
+        "endpoints": ["/analyze", "/webhook", "/stats/daily"],
     }
 
 
@@ -108,7 +106,18 @@ def root():
 def analyze(req: AnalyzeRequest):
     if not req.text.strip():
         raise HTTPException(status_code=400, detail="text must not be empty")
-    return predict_sentiment(req.text)
+    result = predict_sentiment(req.text)
+    result.pop("tokens")
+    return result
+
+
+@app.get("/stats/daily")
+def stats_daily(days: int | None = Query(default=None, ge=1, le=365)):
+    conn = db.connect()
+    try:
+        return db.daily_report(conn, days)
+    finally:
+        conn.close()
 
 
 @app.post("/webhook")
@@ -125,7 +134,11 @@ async def handle_line_webhook(request: Request):
         msg = event.get("message", {})
         if event.get("type") != "message" or msg.get("type") != "text":
             continue
-        reply_text = await asyncio.to_thread(build_reply, msg["text"])
+        result = predictor.predict(msg["text"]) if predictor else None
+        if result is not None:
+            await asyncio.to_thread(store_line_message, msg.get("id", event.get("webhookEventId", "")),
+                                    msg["text"], result, event.get("timestamp"))
+        reply_text = await asyncio.to_thread(build_reply, msg["text"], result)
         await asyncio.to_thread(send_line_reply, event["replyToken"], reply_text)
 
     return {"status": "ok"}

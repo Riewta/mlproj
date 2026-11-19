@@ -32,7 +32,7 @@ def test_analyze_validation(client):
 
 
 def test_analyze_no_model_503(client, monkeypatch):
-    monkeypatch.setitem(main.state, "model", None)
+    monkeypatch.setattr(main, "predictor", None)
     assert client.post("/analyze", json={"text": "ดี"}).status_code == 503
 
 
@@ -53,3 +53,24 @@ def test_detect_aspects():
     from src.aspects import detect_aspects
     r = detect_aspects("ไรเดอร์ส่งช้า ราคาแพง")
     assert r["rider"] and r["delay"] and r["price"] and not r["food"]
+
+
+def test_webhook_stores_message(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "t.db"))
+    monkeypatch.setattr(main, "LINE_ACCESS_TOKEN", "tok")
+    monkeypatch.setattr(main, "LINE_CHANNEL_SECRET", "secret")
+    monkeypatch.setattr(main, "send_line_reply", lambda *a: None)
+
+    class P:
+        def predict(self, t):
+            return {"sentiment": "negative", "confidence": 0.9, "label": 0, "aspects": ["delay"], "tokens": ["ช้า"]}
+
+    monkeypatch.setattr(main, "predictor", P())
+    body = json.dumps({"events": [{"type": "message", "replyToken": "r", "timestamp": 1793500000000,
+                                   "message": {"type": "text", "id": "m1", "text": "ส่งช้า"}}]}).encode()
+    sig = base64.b64encode(hmac.new(b"secret", body, hashlib.sha256).digest()).decode()
+    assert client.post("/webhook", content=body, headers={"x-line-signature": sig}).status_code == 200
+    # same message id again -> not duplicated
+    client.post("/webhook", content=body, headers={"x-line-signature": sig})
+    rep = client.get("/stats/daily").json()
+    assert len(rep) == 1 and rep[0]["total"] == 1 and rep[0]["top_complaints"] == {"delay": 1}

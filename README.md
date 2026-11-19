@@ -22,6 +22,18 @@ python -m src.evaluate             # sentiment report + aspect baseline F1
 ```
 Aspects are a keyword-rule baseline (`src/aspects.py`), returned in `/analyze` as `aspects`.
 
+## Pipeline (ingest → clean/tokenize → SQLite → daily report)
+```bash
+python -m src.pipeline ingest data/reviews.csv   # header: review[,created_at]; headerless: review in col 0
+python -m src.pipeline report --days 14
+```
+Stored in `data/reviews.db` (override with `DB_PATH`). Duplicates are skipped, so re-running is safe.
+LINE messages received on `/webhook` are stored too (text only, no user id). `GET /stats/daily` returns the same report.
+Rows without `created_at` get the ingest time, so undated data (e.g. Wongnai) lands on a single day.
+
+## Data source
+`data/train.csv` = [Wongnai reviews](https://huggingface.co/datasets/Wongnai/wongnai_reviews) (restaurant reviews from wongnai.com, LGPL-3.0). Not committed (`data/` is gitignored). Check the license terms before showing or redistributing the raw text.
+
 ## Run
 ```bash
 uvicorn src.main:app --reload
