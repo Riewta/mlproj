@@ -1,0 +1,22 @@
+{
+  "model": "TF-IDF + Logistic Regression",
+  "params": {
+    "C": 50.0,
+    "class_weight": "none",
+    "threshold": 0.5
+  },
+  "wongnai_test": {
+    "macro_f1": 0.8618161475422702,
+    "f1_negative": 0.7390396659707724,
+    "f1_positive": 0.984592629113768,
+    "accuracy": 0.970903165735568
+  },
+  "wisesight_test": {
+    "macro_f1": 0.473107981523951,
+    "f1_negative": 0.3228915662650602,
+    "f1_positive": 0.6233243967828418,
+    "accuracy": 0.5159345391903531
+  },
+  "latency_ms_p50": 0.6,
+  "size_mb": 1.2
+}
