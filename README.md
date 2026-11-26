@@ -87,4 +87,8 @@ src/db.py           SQLite store + daily report
 src/pipeline.py     ingest / report CLI
 src/main.py         FastAPI app + LINE webhook
 src/evaluate.py     evaluation on hand-labeled reviews
+src/data/load.py    load Wongnai / Wisesight from Hugging Face (Parquet) + label mapping
+src/viz.py          Thai font setup for matplotlib
+notebooks/01_eda.ipynb   EDA + the data decisions it led to (pip install -r requirements-notebooks.txt)
+reports/figures/    figures exported by the notebooks
 ```
