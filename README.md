@@ -67,6 +67,14 @@ Read this carefully:
 ### Aspect labels
 `notebooks/05_aspects.ipynb` splits reviews into sentences and compares the keyword baseline with zero-shot embeddings (`BAAI/bge-m3`). It then writes `data/labels/aspect_sentences.csv`: 400 sentences to label by hand with `pos` / `neg` / `neu` per aspect, following [docs/aspect_labeling_guide.md](docs/aspect_labeling_guide.md). Those labels are used to measure both methods and to train an aspect classifier.
 
+### Topics and complaint patterns (unvalidated)
+`notebooks/06_topics_mining.ipynb` clusters the same sentences with BERTopic and mines association rules between aspect complaints and low ratings, on a sample of 2,000 reviews (400 per star):
+- Service complaints are less common than food complaints (12% vs 25% of reviews), but 86% of reviews with one are rated 1–2 stars (vs 72% for food). The service topic has the lowest average rating of any aspect topic (1.74 stars).
+- Topics outside the four aspects (parking, location, opening hours) come from reviews with average ratings, so they don't explain low ratings.
+- Praise barely predicts high ratings (lift ≤ 1.23), because almost every review praises something.
+
+The aspect sentiment behind these numbers (keywords × baseline sentence sentiment) has not been validated yet.
+
 ## Data source
 - [Wongnai reviews](https://huggingface.co/datasets/Wongnai/wongnai_reviews): restaurant reviews from wongnai.com, LGPL-3.0.
 - [Wisesight Sentiment](https://huggingface.co/datasets/pythainlp/wisesight_sentiment): Thai social-media messages, CC0.
@@ -98,6 +106,7 @@ notebooks/01_eda.ipynb   EDA + the data decisions it led to (pip install -r requ
 notebooks/02_baseline.ipynb  baseline re-evaluated on the published test set + Wisesight -> reports/metrics/baseline.json
 notebooks/03_wangchanberta.ipynb  fine-tune WangchanBERTa on Colab (T4), MLflow tracking -> reports/metrics/wangchanberta.json
 notebooks/05_aspects.ipynb  aspects: keyword vs zero-shot (bge-m3), builds the labeling set
+notebooks/06_topics_mining.ipynb  BERTopic topics + association rules (aspect complaints -> low ratings) -> reports/topics.csv
 data/labels/        hand-labeled data (committed; the rest of data/ is not)
 docs/aspect_labeling_guide.md  rules for labeling aspects
 reports/figures/    figures exported by the notebooks
