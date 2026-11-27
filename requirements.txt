@@ -9,3 +9,4 @@ pythainlp
 python-dotenv
 pytest
 httpx
+python-crfsuite

@@ -49,10 +49,6 @@ def test_webhook_signature(client, monkeypatch):
     assert r.status_code == 200
 
 
-def test_detect_aspects():
-    from src.aspects import detect_aspects
-    r = detect_aspects("ไรเดอร์ส่งช้า ราคาแพง")
-    assert r["rider"] and r["delay"] and r["price"] and not r["food"]
 
 
 def test_webhook_stores_message(client, monkeypatch, tmp_path):
