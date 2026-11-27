@@ -4,3 +4,6 @@ huggingface_hub
 pyarrow
 matplotlib
 jupyter
+sentence-transformers
+bertopic
+mlxtend

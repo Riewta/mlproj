@@ -1,0 +1,7 @@
+# Extra packages for notebooks/03_wangchanberta.ipynb on Colab.
+# torch, transformers, accelerate, pandas, scikit-learn are already installed there.
+pythainlp
+sentencepiece
+huggingface_hub
+pyarrow
+mlflow
