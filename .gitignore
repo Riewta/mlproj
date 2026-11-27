@@ -210,3 +210,5 @@ __marimo__/
 models/*.pkl
 .venv/
 __pycache__/
+outputs/
+reports/**/*_smoke*

@@ -96,9 +96,11 @@ src/evaluate.py     evaluation on hand-labeled reviews
 src/data/load.py    load Wongnai / Wisesight from Hugging Face (Parquet) + label mapping
 src/data/splits.py  fixed train / val / test splits shared by every model
 src/models/baseline.py  TF-IDF + Logistic Regression pipeline (used by train.py and notebooks)
+src/models/transformer.py  WangchanBERTa input prep (lowercase, spaces -> <_>, head/head+tail truncation)
 src/metrics.py      macro-F1 / per-class F1 + bootstrap confidence interval
 src/viz.py          Thai font setup for matplotlib
 notebooks/01_eda.ipynb   EDA + the data decisions it led to (pip install -r requirements-notebooks.txt)
 notebooks/02_baseline.ipynb  baseline re-evaluated on the published test set + Wisesight -> reports/metrics/baseline.json
+notebooks/03_wangchanberta.ipynb  fine-tune WangchanBERTa on Colab (T4), MLflow tracking -> reports/metrics/wangchanberta.json
 reports/figures/    figures exported by the notebooks
 ```
